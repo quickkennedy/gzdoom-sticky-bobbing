@@ -50,6 +50,8 @@ class PlayerPawn : Actor
 	double		FullHeight;
 	double		curBob;
 	double		prevBob;
+	float		prevx;
+	float		prevy;
 
 	meta Name HealingRadiusType;
 	meta Name InvulMode;
@@ -2387,7 +2389,7 @@ class PlayerPawn : Actor
 			// The weapon bobbing intensity while firing can be adjusted by the player.
 			double BobIntensity = (player.WeaponState & WF_WEAPONBOBBING) ? 1. : player.GetWBobFire();
 
-			if (curbob != 0)
+			if (player.WeaponState & WF_WEAPONBOBBING)
 			{
 				double bobVal = player.bob;
 				if (i == 0)
@@ -2428,10 +2430,12 @@ class PlayerPawn : Actor
 					r.X = bobx*cos(angle);
 					r.Y = 0.5f * (boby * (1. + (cos(angle * 2))));
 				}
+				prevx = r.X;
+				prevy = r.Y;
 			}
 			else
 			{
-				r = (0, 0);
+				r = (prevx, prevy);
 			}
 			if (i == 0) p1 = r; else p2 = r;
 		}
