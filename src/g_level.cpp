@@ -1023,11 +1023,6 @@ DIntermissionController* FLevelLocals::CreateIntermission()
 
 void RunIntermission(level_info_t* fromMap, level_info_t* toMap, DIntermissionController* intermissionScreen, DObject* statusScreen, std::function<void(bool)> completionf)
 {
-	if (!intermissionScreen && !statusScreen)
-	{
-		completionf(false);
-		return;
-	}
 	cutscene.runner = CreateRunner(false);
 	GC::WriteBarrier(cutscene.runner);
 	cutscene.completion = std::move(completionf);
@@ -1118,7 +1113,7 @@ void G_DoCompleted (void)
 	bool endgame = strncmp(nextlevel, "enDSeQ", 6) == 0;
 	intermissionScreen = primaryLevel->CreateIntermission();
 	auto nextinfo = !playinter || endgame? nullptr : FindLevelInfo(nextlevel, false);
-	RunIntermission(playinter? primaryLevel->info : nullptr, nextinfo, intermissionScreen, statusScreen, [=](bool)
+	RunIntermission(primaryLevel->info, nextinfo, intermissionScreen, statusScreen, [=](bool)
 	{
 		if (!endgame) primaryLevel->WorldDone();
 		else D_StartTitle();
@@ -1287,12 +1282,7 @@ bool FLevelLocals::DoCompleted (FString nextlevel, wbstartstruct_t &wminfo)
 
 	finishstate = mode;
 
-	if (!ShouldDoIntermission(nextcluster, thiscluster))
-	{
-		WorldDone ();
-		return false;
-	}
-	return true;
+	return ShouldDoIntermission(nextcluster, thiscluster);
 }
 
 //==========================================================================
@@ -1395,7 +1385,7 @@ void FLevelLocals::DoLoadLevel(const FString &nextmapname, int position, bool au
 	{
 		FString mapname = nextmapname;
 		mapname.ToUpper();
-		Printf("\n%s\n\n" TEXTCOLOR_BOLD "%s - %s\n\n", console_bar, mapname.GetChars(), LevelName.GetChars());
+		Printf(PRINT_NONOTIFY, "\n" TEXTCOLOR_NORMAL "%s\n\n" TEXTCOLOR_BOLD "%s - %s\n\n", console_bar, mapname.GetChars(), LevelName.GetChars());
 	}
 
 	// Set the sky map.
@@ -1784,8 +1774,7 @@ void FLevelLocals::Init()
 {
 	P_InitParticles(this);
 	P_ClearParticles(this);
-	BaseBlendA = 0.0f;		// Remove underwater blend effect, if any
-
+	
 	gravity = sv_gravity * 35/TICRATE;
 	aircontrol = sv_aircontrol;
 	AirControlChanged();

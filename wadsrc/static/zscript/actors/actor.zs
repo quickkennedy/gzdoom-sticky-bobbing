@@ -278,6 +278,7 @@ class Actor : Thinker native
 	meta double MissileHeight;
 	meta Name MissileName;
 	meta double FastSpeed;		// speed in fast mode
+	meta Sound PushSound;		// Sound being played when pushed by something
 
 	// todo: implement access to native meta properties.
 	// native meta int infighting_group;
@@ -323,6 +324,7 @@ class Actor : Thinker native
 	property DeathSound: DeathSound;
 	property ActiveSound: ActiveSound;
 	property CrushPainSound: CrushPainSound;
+	property PushSound: PushSound;
 	property Alpha: Alpha;
 	property MaxTargetRange: MaxTargetRange;
 	property MeleeThreshold: MeleeThreshold;
@@ -468,6 +470,7 @@ class Actor : Thinker native
 		MarkSound(CrushPainSound);
 		MarkSound(HowlSound);
 		MarkSound(MeleeSound);
+		MarkSound(PushSound);
 	}
 
 	bool IsPointerEqual(int ptr_select1, int ptr_select2)
@@ -488,7 +491,7 @@ class Actor : Thinker native
 	virtual native int TakeSpecialDamage (Actor inflictor, Actor source, int damage, Name damagetype);
 	virtual native void Die(Actor source, Actor inflictor, int dmgflags = 0, Name MeansOfDeath = 'none');
 	virtual native bool Slam(Actor victim);
-	virtual native void Touch(Actor toucher);
+	virtual void Touch(Actor toucher) {}
 	virtual native void FallAndSink(double grav, double oldfloorz);
 	private native void Substitute(Actor replacement);
 	native ui void DisplayNameTag();
@@ -805,6 +808,21 @@ class Actor : Thinker native
 	native clearscope double GetCameraHeight() const;
 	native clearscope double GetGravity() const;
 	native void DoMissileDamage(Actor target);
+	native void PlayPushSound();
+
+	clearscope double PitchTo(Actor target, double zOfs = 0, double targZOfs = 0, bool absolute = false) const
+	{
+		Vector3 origin = (pos.xy, pos.z - floorClip + zOfs);
+		Vector3 dest = (target.pos.xy, target.pos.z - target.floorClip + targZOfs);
+
+		Vector3 diff;
+		if (!absolute)
+			diff = level.Vec3Diff(origin, dest);
+		else
+			diff = dest - origin;
+
+		return -atan2(diff.z, diff.xy.Length());
+	}
 
 	//==========================================================================
 	//
@@ -1360,6 +1378,9 @@ class Actor : Thinker native
 	GenericCrush:
 		POL5 A -1;
 		Stop;
+	DieFromSpawn:
+		TNT1 A 1;
+		TNT1 A 1 { self.Die(null, null); }
 	}
 
 	// Internal functions

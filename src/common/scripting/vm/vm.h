@@ -39,6 +39,7 @@
 #include "autosegs.h"
 #include "zstring.h"
 #include "vectors.h"
+#include "quaternion.h"
 #include "cmdlib.h"
 #include "engineerrors.h"
 #include "memarena.h"
@@ -80,8 +81,9 @@ enum
 	REGT_KONST		= 4,
 	REGT_MULTIREG2	= 8,
 	REGT_MULTIREG3	= 16,	// (e.g. a vector)
-	REGT_MULTIREG	= 24,
+	REGT_MULTIREG	= 8 | 16 | 64,
 	REGT_ADDROF		= 32,	// used with PARAM: pass address of this register
+	REGT_MULTIREG4	= 64,
 
 	REGT_NIL		= 128	// parameter was omitted
 };
@@ -110,8 +112,8 @@ public:
 };
 
 // This must be a separate function because the VC compiler would otherwise allocate memory on the stack for every separate instance of the exception object that may get thrown.
-void ThrowAbortException(EVMAbortException reason, const char *moreinfo, ...);
-void ThrowAbortException(VMScriptFunction *sfunc, VMOP *line, EVMAbortException reason, const char *moreinfo, ...);
+[[noreturn]] void ThrowAbortException(EVMAbortException reason, const char *moreinfo, ...);
+[[noreturn]] void ThrowAbortException(VMScriptFunction *sfunc, VMOP *line, EVMAbortException reason, const char *moreinfo, ...);
 
 void ClearGlobalVMStack();
 
@@ -129,6 +131,30 @@ struct VMReturn
 	{
 		assert(RegType == REGT_FLOAT);
 		*(double *)Location = val;
+	}
+	void SetVector4(const double val[4])
+	{
+		assert(RegType == (REGT_FLOAT|REGT_MULTIREG4));
+		((double *)Location)[0] = val[0];
+		((double *)Location)[1] = val[1];
+		((double *)Location)[2] = val[2];
+		((double *)Location)[3] = val[3];
+	}
+	void SetVector4(const DVector4 &val)
+	{
+		assert(RegType == (REGT_FLOAT | REGT_MULTIREG4));
+		((double *)Location)[0] = val[0];
+		((double *)Location)[1] = val[1];
+		((double *)Location)[2] = val[2];
+		((double *)Location)[3] = val[3];
+	}
+	void SetQuaternion(const DQuaternion &val)
+	{
+		assert(RegType == (REGT_FLOAT | REGT_MULTIREG4));
+		((double *)Location)[0] = val[0];
+		((double *)Location)[1] = val[1];
+		((double *)Location)[2] = val[2];
+		((double *)Location)[3] = val[3];
 	}
 	void SetVector(const double val[3])
 	{
@@ -496,6 +522,7 @@ inline int VMCallAction(VMFunction *func, VMValue *params, int numparams, VMRetu
 
 // Use these to collect the parameters in a native function.
 // variable name <x> at position <p>
+[[noreturn]]
 void NullParam(const char *varname);
 
 #ifndef NDEBUG
@@ -730,6 +757,8 @@ class AActor;
 #define ACTION_RETURN_FLOAT(v) do { double u = v; if (numret > 0) { assert(ret != nullptr); ret->SetFloat(u); return 1; } return 0; } while(0)
 #define ACTION_RETURN_VEC2(v) do { DVector2 u = v; if (numret > 0) { assert(ret != nullptr); ret[0].SetVector2(u); return 1; } return 0; } while(0)
 #define ACTION_RETURN_VEC3(v) do { DVector3 u = v; if (numret > 0) { assert(ret != nullptr); ret[0].SetVector(u); return 1; } return 0; } while(0)
+#define ACTION_RETURN_VEC4(v) do { DVector4 u = v; if (numret > 0) { assert(ret != nullptr); ret[0].SetVector4(u); return 1; } return 0; } while(0)
+#define ACTION_RETURN_QUAT(v) do { DQuaternion u = v; if (numret > 0) { assert(ret != nullptr); ret[0].SetQuaternion(u); return 1; } return 0; } while(0)
 #define ACTION_RETURN_INT(v) do { int u = v; if (numret > 0) { assert(ret != NULL); ret->SetInt(u); return 1; } return 0; } while(0)
 #define ACTION_RETURN_BOOL(v) ACTION_RETURN_INT(v)
 #define ACTION_RETURN_STRING(v) do { FString u = v; if (numret > 0) { assert(ret != NULL); ret->SetString(u); return 1; } return 0; } while(0)
