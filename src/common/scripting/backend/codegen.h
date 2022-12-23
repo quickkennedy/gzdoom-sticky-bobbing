@@ -350,6 +350,8 @@ public:
 	bool IsArray() const { return ValueType->isArray() || (ValueType->isPointer() && ValueType->toPointer()->PointedType->isArray()); }
 	bool isStaticArray() const { return (ValueType->isPointer() && ValueType->toPointer()->PointedType->isStaticArray()); } // can only exist in pointer form.
 	bool IsDynamicArray() const { return (ValueType->isDynArray()); }
+	bool IsMap() const { return ValueType->isMap(); }
+	bool IsMapIterator() const { return ValueType->isMapIterator(); }
 	bool IsStruct() const { return ValueType->isStruct(); }
 	bool IsNativeStruct() const { return (ValueType->isStruct() && static_cast<PStruct*>(ValueType)->isNative); }
 
@@ -450,7 +452,7 @@ public:
 	FxConstant(FSoundID val, const FScriptPosition &pos) : FxExpression(EFX_Constant, pos)
 	{
 		ValueType = value.Type = TypeSound;
-		value.Int = val;
+		value.Int = val.index();
 		isresolved = true;
 	}
 
@@ -558,11 +560,10 @@ public:
 class FxVectorValue : public FxExpression
 {
 	constexpr static int maxVectorDimensions = 4;
-
-	FxExpression *xyzw[maxVectorDimensions];
 	bool isConst;	// gets set to true if all element are const (used by function defaults parser)
 
 public:
+	FxExpression *xyzw[maxVectorDimensions];
 
 	friend class ZCCCompiler;
 
@@ -901,6 +902,17 @@ public:
 	~FxMultiAssign();
 	FxExpression *Resolve(FCompileContext&);
 	ExpEmit Emit(VMFunctionBuilder *build);
+};
+
+class FxMultiAssignDecl : public FxExpression
+{
+	FArgumentList Base;
+	FxExpression *Right;
+public:
+	FxMultiAssignDecl(FArgumentList &base, FxExpression *right, const FScriptPosition &pos);
+	~FxMultiAssignDecl();
+	FxExpression *Resolve(FCompileContext&);
+	//ExpEmit Emit(VMFunctionBuilder *build); This node is transformed into Declarations + FxMultiAssign , so it won't ever be emitted itself
 };
 
 //==========================================================================
