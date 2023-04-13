@@ -101,7 +101,7 @@ struct FCompileContext
 
 	void HandleJumps(int token, FxExpression *handler);
 	void CheckReturn(PPrototype *proto, FScriptPosition &pos);
-	bool CheckWritable(int flags);
+	bool IsWritable(int flags, int checkFileNo = 0);
 	FxLocalVariableDeclaration *FindLocalVariable(FName name);
 };
 
@@ -294,6 +294,7 @@ enum EFxType
 	EFX_Super,
 	EFX_StackVariable,
 	EFX_MultiAssign,
+	EFX_MultiAssignDecl,
 	EFX_StaticArray,
 	EFX_StaticArrayVariable,
 	EFX_CVar,

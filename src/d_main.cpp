@@ -186,8 +186,6 @@ EXTERN_CVAR (Float, turbo)
 EXTERN_CVAR (Bool, freelook)
 EXTERN_CVAR (Float, m_pitch)
 EXTERN_CVAR (Float, m_yaw)
-EXTERN_CVAR (Bool, invertmouse)
-EXTERN_CVAR (Bool, invertmousex)
 EXTERN_CVAR (Bool, lookstrafe)
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, sv_cheats)
@@ -566,6 +564,18 @@ CVAR (Flag, sv_nothingspawn,		dmflags2, DF2_NO_COOP_THING_SPAWN);
 CVAR (Flag, sv_alwaysspawnmulti,	dmflags2, DF2_ALWAYS_SPAWN_MULTI);
 CVAR (Flag, sv_novertspread,		dmflags2, DF2_NOVERTSPREAD);
 CVAR (Flag, sv_noextraammo,			dmflags2, DF2_NO_EXTRA_AMMO);
+
+//==========================================================================
+//
+// CVAR dmflags3
+//
+//==========================================================================
+
+CUSTOM_CVAR(Int, dmflags3, 0, CVAR_SERVERINFO | CVAR_NOINITCALL)
+{
+}
+
+CVAR(Flag, sv_noplayerclip, dmflags3, DF3_NO_PLAYER_CLIP);
 
 //==========================================================================
 //
@@ -1234,7 +1244,7 @@ void D_DoomLoop ()
 		catch (CVMAbortException &error)
 		{
 			error.MaybePrintMessage();
-			Printf(PRINT_NONOTIFY, "%s", error.stacktrace.GetChars());
+			Printf(PRINT_NONOTIFY | PRINT_BOLD, "%s", error.stacktrace.GetChars());
 			D_ErrorCleanup();
 		}
 	}
@@ -1581,6 +1591,8 @@ void ParseCVarInfo()
 			ECVarType cvartype = CVAR_Dummy;
 			int cvarflags = CVAR_MOD|CVAR_ARCHIVE;
 			FBaseCVar *cvar;
+			bool customCVar = false;
+			FName customCVarClassName;
 
 			// Check for flag tokens.
 			while (sc.TokenType == TK_Identifier)
@@ -1608,6 +1620,14 @@ void ParseCVarInfo()
 				else if (stricmp(sc.String, "nosave") == 0)
 				{
 					cvarflags |= CVAR_CONFIG_ONLY;
+				}
+				else if (stricmp(sc.String, "handlerClass") == 0)
+				{
+					sc.MustGetStringName("(");
+					sc.MustGetString();
+					customCVar = true;
+					customCVarClassName = sc.String;
+					sc.MustGetStringName(")");
 				}
 				else
 				{
@@ -1691,7 +1711,7 @@ void ParseCVarInfo()
 				}
 			}
 			// Now create the cvar.
-			cvar = C_CreateCVar(cvarname, cvartype, cvarflags);
+			cvar = customCVar ? C_CreateZSCustomCVar(cvarname, cvartype, cvarflags, customCVarClassName) : C_CreateCVar(cvarname, cvartype, cvarflags);
 			if (cvardefault != NULL)
 			{
 				UCVarValue val;
@@ -1770,6 +1790,7 @@ static FString ParseGameInfo(TArray<FString> &pwads, const char *fn, const char 
 	FScanner sc;
 	FString iwad;
 	int pos = 0;
+	bool isDir;
 
 	const char *lastSlash = strrchr (fn, '/');
 
@@ -1803,7 +1824,7 @@ static FString ParseGameInfo(TArray<FString> &pwads, const char *fn, const char 
 				{
 					checkpath = sc.String;
 				}
-				if (!FileExists(checkpath))
+				if (!DirEntryExists(checkpath, &isDir))
 				{
 					pos += D_AddFile(pwads, sc.String, true, pos, GameConfig);
 				}
@@ -2649,15 +2670,12 @@ static bool System_DispatchEvent(event_t* ev)
 		if (buttonMap.ButtonDown(Button_Mlook) || freelook)
 		{
 			int look = int(ev->y * m_pitch * 16.0);
-			if (invertmouse) look = -look;
 			G_AddViewPitch(look, true);
 			ev->y = 0;
 		}
 		if (!buttonMap.ButtonDown(Button_Strafe) && !lookstrafe)
 		{
-			int turn = int(ev->x * m_yaw * 8.0);
-			if (invertmousex)
-				turn = -turn;
+			int turn = int(ev->x * m_yaw * 16.0);
 			G_AddViewAngle(turn, true);
 			ev->x = 0;
 		}
@@ -3249,6 +3267,8 @@ static int D_InitGame(const FIWADInfo* iwad_info, TArray<FString>& allwads, TArr
 
 	R_ParseTrnslate();
 	PClassActor::StaticInit ();
+	FBaseCVar::InitZSCallbacks ();
+	
 	Job_Init();
 
 	// [GRB] Initialize player class list
@@ -3500,6 +3520,8 @@ static int D_InitGame(const FIWADInfo* iwad_info, TArray<FString>& allwads, TArr
 		D_StartTitle ();				// start up intro loop
 		setmodeneeded = false;			// This may be set to true here, but isn't needed for a restart
 	}
+
+	staticEventManager.OnEngineInitialize();
 	return 0;
 }
 //==========================================================================

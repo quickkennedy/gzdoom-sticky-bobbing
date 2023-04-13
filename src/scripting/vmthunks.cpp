@@ -1199,10 +1199,34 @@ DEFINE_ACTION_FUNCTION_NATIVE(_Sector, SetXOffset, SetXOffset)
 	 return self->getPortalAlignment();
  }
 
+ DEFINE_ACTION_FUNCTION(_Line, getPortalFlags)
+ {
+	 PARAM_SELF_STRUCT_PROLOGUE(line_t);
+	 ACTION_RETURN_INT(self->getPortalFlags());
+ }
+
  DEFINE_ACTION_FUNCTION_NATIVE(_Line, getPortalAlignment, getPortalAlignment)
  {
 	 PARAM_SELF_STRUCT_PROLOGUE(line_t);
 	 ACTION_RETURN_INT(self->getPortalAlignment());
+ }
+
+ DEFINE_ACTION_FUNCTION(_Line, getPortalType)
+ {
+	 PARAM_SELF_STRUCT_PROLOGUE(line_t);
+	 ACTION_RETURN_INT(self->getPortalType());
+ }
+
+ DEFINE_ACTION_FUNCTION(_Line, getPortalDisplacement)
+ {
+	 PARAM_SELF_STRUCT_PROLOGUE(line_t);
+	 ACTION_RETURN_VEC2(self->getPortalDisplacement());
+ }
+
+ DEFINE_ACTION_FUNCTION(_Line, getPortalAngleDiff)
+ {
+	 PARAM_SELF_STRUCT_PROLOGUE(line_t);
+	 ACTION_RETURN_FLOAT(self->getPortalAngleDiff().Degrees());
  }
 
  static int LineIndex(line_t *self)
@@ -2271,7 +2295,7 @@ DEFINE_ACTION_FUNCTION(FLevelLocals, GetChecksum)
 
 	for (int j = 0; j < 16; ++j)
 	{
-		sprintf(md5string + j * 2, "%02x", self->md5[j]);
+		snprintf(md5string + j * 2, 3, "%02x", self->md5[j]);
 	}
 
 	ACTION_RETURN_STRING((const char*)md5string);
@@ -2668,7 +2692,7 @@ DEFINE_ACTION_FUNCTION(_LevelInfo, MapChecksum)
 		map->GetChecksum(cksum);
 		for (int j = 0; j < 16; ++j)
 		{
-			sprintf(md5string + j * 2, "%02x", cksum[j]);
+			snprintf(md5string + j * 2, 3, "%02x", cksum[j]);
 		}
 		delete map;
 	}
@@ -2719,6 +2743,7 @@ DEFINE_FIELD(FLevelLocals, sectors)
 DEFINE_FIELD(FLevelLocals, lines)
 DEFINE_FIELD(FLevelLocals, sides)
 DEFINE_FIELD(FLevelLocals, vertexes)
+DEFINE_FIELD(FLevelLocals, linePortals)
 DEFINE_FIELD(FLevelLocals, sectorPortals)
 DEFINE_FIELD(FLevelLocals, time)
 DEFINE_FIELD(FLevelLocals, maptime)

@@ -177,12 +177,9 @@ void FCompileContext::CheckReturn(PPrototype *proto, FScriptPosition &pos)
 	}
 }
 
-// [ZZ] I find it really dumb that something called CheckReadOnly returns false for readonly. renamed.
-bool FCompileContext::CheckWritable(int flags)
+bool FCompileContext::IsWritable(int flags, int checkFileNo)
 {
-	if (!(flags & VARF_ReadOnly)) return false;
-	if (!(flags & VARF_InternalAccess)) return true;
-	return fileSystem.GetFileContainer(Lump) != 0;
+	return !(flags & VARF_ReadOnly) || ((flags & VARF_InternalAccess) && fileSystem.GetFileContainer(Lump) == checkFileNo);
 }
 
 FxLocalVariableDeclaration *FCompileContext::FindLocalVariable(FName name)
@@ -2571,7 +2568,15 @@ ExpEmit FxAssign::Emit(VMFunctionBuilder *build)
 	}
 
 	pointer.Free(build);
-	return result;
+
+	if(intconst)
+	{	//fix int constant return for assignment
+		return Right->Emit(build);
+	}
+	else
+	{
+		return result;
+	}
 }
 
 //==========================================================================
@@ -2726,7 +2731,7 @@ ExpEmit FxMultiAssign::Emit(VMFunctionBuilder *build)
 //==========================================================================
 
 FxMultiAssignDecl::FxMultiAssignDecl(FArgumentList &base, FxExpression *right, const FScriptPosition &pos)
-	:FxExpression(EFX_MultiAssign, pos)
+	:FxExpression(EFX_MultiAssignDecl, pos)
 {
 	Base = std::move(base);
 	Right = right;
@@ -6730,7 +6735,7 @@ FxExpression *FxLocalVariable::Resolve(FCompileContext &ctx)
 bool FxLocalVariable::RequestAddress(FCompileContext &ctx, bool *writable)
 {
 	AddressRequested = true;
-	if (writable != nullptr) *writable = !ctx.CheckWritable(Variable->VarFlags);
+	if (writable != nullptr) *writable = ctx.IsWritable(Variable->VarFlags);
 	return true;
 }
 
@@ -6885,7 +6890,7 @@ FxGlobalVariable::FxGlobalVariable(PField* mem, const FScriptPosition &pos)
 bool FxGlobalVariable::RequestAddress(FCompileContext &ctx, bool *writable)
 {
 	AddressRequested = true;
-	if (writable != nullptr) *writable = AddressWritable && !ctx.CheckWritable(membervar->Flags);
+	if (writable != nullptr) *writable = AddressWritable && ctx.IsWritable(membervar->Flags, membervar->mDefFileNo);
 	return true;
 }
 
@@ -7078,7 +7083,7 @@ FxStackVariable::~FxStackVariable()
 bool FxStackVariable::RequestAddress(FCompileContext &ctx, bool *writable)
 {
 	AddressRequested = true;
-	if (writable != nullptr) *writable = AddressWritable && !ctx.CheckWritable(membervar->Flags);
+	if (writable != nullptr) *writable = AddressWritable && ctx.IsWritable(membervar->Flags, membervar->mDefFileNo);
 	return true;
 }
 
@@ -7180,7 +7185,7 @@ bool FxStructMember::RequestAddress(FCompileContext &ctx, bool *writable)
 	else if (writable != nullptr)
 	{
 		// [ZZ] original check.
-		bool bWritable = (AddressWritable && !ctx.CheckWritable(membervar->Flags) &&
+		bool bWritable = (AddressWritable && ctx.IsWritable(membervar->Flags, membervar->mDefFileNo) &&
 			(!classx->ValueType->isPointer() || !classx->ValueType->toPointer()->IsConst));
 		// [ZZ] implement write barrier between different scopes
 		if (bWritable)
@@ -8508,6 +8513,11 @@ FxExpression *FxMemberFunctionCall::Resolve(FCompileContext& ctx)
 		}
 		else
 		{
+			if (PFunction **Override; ctx.Version >= MakeVersion(4, 11, 0) && (Override = static_cast<PDynArray*>(Self->ValueType)->FnOverrides.CheckKey(MethodName)))
+			{
+				afd_override = *Override;
+			}
+
 			auto elementType = static_cast<PDynArray*>(Self->ValueType)->ElementType;
 			Self->ValueType = static_cast<PDynArray*>(Self->ValueType)->BackingType;
 			bool isDynArrayObj = elementType->isObjectPointer();
